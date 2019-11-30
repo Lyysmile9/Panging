@@ -1,0 +1,77 @@
+c的面向对象化：
+	在面向对象的语言里面，出现了类的概念。
+	类是对特定数据的特定操作的集合体。
+	类包含了两个范畴：数据和操作。
+	而C语言中的struct仅仅是数据的集合，我们可以利用函数指针将struct模拟为一个包含数据和操作的“类”。
+
+用c程序模拟一个最简单的“类”
+
+#define C_Class struct
+C_Class A
+{
+	C_Class A *A_this;			//this指针
+
+	void(*foo)(C_Class A *A_this);		//行为：函数指针
+	int(*parea)(int length, int width);
+
+	int a;					//数据 
+	int b;
+}
+
+例：菜单操作
+	要求以键盘上的“<- ->”键切换菜单焦点，当用户在焦点处于某菜单时，若敲击键盘上的OK、CANCEL键则调用该焦点菜单对应的处理函数。
+	 —————	 —————	 —————	 —————
+	|菜单1| |菜单2| |菜单3| |菜单4|
+	 —————	 —————	 —————	 —————
+菜单实现方法1：
+/*按下OK键*/						/*按下Cancel键*/
+void onOkKey()						void onCancelKey()
+{							{
+/*判断在什么焦点菜单上按下OK键，调用相应处理函数*/	/*判断在什么焦点菜单上按下Cancel键，调用相应处理函数*/
+	Switch(currentFocus)					Switch(currentFoucs)
+	{							{
+		case MENU1:						case MENU1:
+		menu1OnOk();						menu1OnCancel();
+		break;							break;
+		case MENU2:						case MENU2:
+		menu2OnOk();						menu2OnCancel();
+		break;							break;
+		...							...
+		default:						default:
+		printf("invalid key\n");				printf("invalid key\n");
+		break;							break;
+	}							}
+}							}
+/*如果增减菜单项怎么办？————>需要分别在两个函数中增减对应的处理函数*/
+
+菜单实现方法2：
+/*将菜单的属性和操作“封装”在一起，声明菜单项的“类”*/
+typedef struct tagSysMenu
+{
+char *text;		//菜单的文本
+BYTE xPos;		//菜单在LCD上的x坐标
+BYTE yPos;		//菜单在LCD上的y坐标
+void(*onOkFun)();	//在该菜单上按下ok键的处理函数指针
+void(*onCancelFun)();	//在该菜单上按下Cancel键的处理函数指针
+}SysMenu, *LPSysMenu;
+
+/*用结构体数组来实现每一个菜单项*/
+static SysMenu menu[MENU_NUM] =
+{
+  { "menu1", 0, 48, menu1OnOk, menu1OnCancel },	//声明的同时做了初始化
+  { "menu2", 7, 48, menu2OnOk, menu2OnCancel },
+  { "menu3", 14, 48, menu3OnOk, menu2OnCancel },
+  ...
+};
+
+/*按下OK键*/					/*按下Cancel键*/
+void onOkKey()					void onCancelKey()
+{						{
+	menu[currentFocusMenu].onOkFun();		menu[currentFocusMenu].onCancelFun();
+}						}
+/*如果增减项怎么办？————>只需要增减结构体数组中对应的初始化项，同时更改“MENU_NUM”*/
+
+结论：
+	程序被大大简化了，也开始具有很好的可扩展性
+	利用了面向对象中的封装思想，使程序结构清晰，其结果是几乎可以在无需修改程序的情况下在系统中添加更多的菜单，而系统的按键处理函数保持不变。
+
