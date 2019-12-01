@@ -1,0 +1,55 @@
+循环优化
+	循环是代码优化的重点
+	C程序主要使用for和while进行循环
+
+固定次数的循环
+	什么是ARM上编写for循环最高效的方法？
+
+例：固定次数的循环
+int checksum_v5(int *data)
+{
+	unsigned int i;
+	int sum = 0;
+	for(i = 0; i < 64; i++)
+		sum += *(data++);
+	return sum;
+}
+
+checksum_v5_s
+	MOV	r2,r0			;r2 = data
+	MOV	r0,#0			;sum = 0
+	MOV	r1,#0			;i = 0
+checksum_v5_loop
+	LDR	r3,[r2],#4		;r3 = *(data++)
+	ADD	r1,r1,#1		;i++			********
+	CMP	r1,#0x40		;compare i, 64		********
+	ADD	r0,r3,r0		;sum += r3
+	BCC	checksum_v5_loop	;if(i<64) goto loop	********
+	MOV	pc,14			;return sum
+讨论：
+	ARM汇编中，实现循环只要两条指令就可以了
+		减法指令用作循环计数，同时设置结果条件标志
+		一条条件分支指令
+
+int checksum_v6(int *data)
+{
+	unsigned int i;
+	int sum = 0;
+	for(i = 64; i!= 0; i--)
+		sum += *(data++);
+	return sum;
+}
+
+checksum_v6_s
+	MOV	r2,r0			;r2 = data
+	MOV	r0,#0			;sum = 0
+	MOV	r1,#0x40		;i = 64
+checksum_v6_loop
+	LDR	r3,[r2],#4		;r3 = *(data++)
+	SUBS	r1,r1,#1		;i-- and set flags	*******
+	ADD	r0,r3,r0		;sum += r3
+	BNE	checksum_v6_loop	;if(i!=0) goto loop	*******
+	MOV	pc,r14			;return sum
+
+总结
+	采用减计数
