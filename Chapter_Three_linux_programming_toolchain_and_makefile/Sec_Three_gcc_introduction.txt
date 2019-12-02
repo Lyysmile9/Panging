@@ -1,0 +1,57 @@
+gcc简介
+	GCC vs gcc
+	gcc与g++:当程序中出现using namespace std 等带有C++特性的语句时，
+	如果用gcc编译，必须显示指明整个程序要用C++标准库编译，而g++可以直接编译
+
+gcc支持的文件
+	.c	C源程序
+	.C	C++源程序
+	.cc	C++源程序
+	.cxx	C++源程序
+	.m	Objective C源程序
+	.i	经过预处理的C源程序
+	.ii	经过预处理的C++源程序
+	.s	汇编语言源程序
+	.S	汇编语言源程序
+	.h	头文件
+	.o	目标文件
+	.a	存档文件
+
+gcc是高效的编译器
+#include <stdio.h>
+int main()
+{
+	printf("hello world\n");
+	return 0;
+}
+g++编译后	4.6K
+tc++3编译后	7.8K
+bc45编译后	53.8K
+vc6编译后	184K
+
+编译过程
+	用gcc编译程序时，分为四个阶段：	分步编译源程序：
+		预处理(pre-processing)		gcc -E hello.c -o hello.i
+		编译(compiling)			gcc -S hello.c -o hello.s
+		汇编(assembling)		gcc -c hello.c -o hello.o
+		链接(linking)			gcc hello.c -o hello
+	程序员可以根据需要在任何一阶段停止
+
+gcc的常用选项
+	-c		通知gcc取消链接步骤，即编译源码并在最后生成目标文件
+	-Dmacro		定义指定的宏，使它能够通过源码中的#define进行检验
+	-L DIRNAME 	将DIRNAME加入到库文件搜索的路径中
+	-g		在可执行文件中包含标准调试信息
+	-I DIRNAME	将DIRNAME加入到头文件搜索的路径中
+	-l library	提示链接程序在创建最终可执行文件时包含指定的库
+	-O，-O2,-O3	将优化状态打开，该选项不能与-g选项联合使用
+	-S		要求编译程序生成来自源代码的汇编程序输出
+	-Wall		启动所有警报
+	-E		仅执行预处理
+	-Werror		在发生警报时取消编译操作，即将警报看作是错误
+	-w		禁止所有的警报
+	-static		对库文件进行静态链接，默认是动态编译
+	-ggdb		在可执行文件中包含只有gdb才能识别的大量调试信息
+	-ansi		支持ansi/iso语法标准，取消gnu所有与ansi冲突的语法扩展
+	--pedantic	尽可能显示ansi/iso c标准列出的所有警告
+	--pedantic-errors 尽可能显示ansi/iso c标准列出的所有错误
