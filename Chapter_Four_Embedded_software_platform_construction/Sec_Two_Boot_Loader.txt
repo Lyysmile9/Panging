@@ -1,0 +1,105 @@
+Boot Loader的特点
+	Boot Loader的实现高度依赖于硬件，包括处理器的体系结构、具体型号、硬件电路板的设计。
+	不存在通用的Boot Loader，但是存在设计Boot Loader的通用的概念和规则，以指导用户对特定的Boot Loader进行设计与实现。
+	宿主主机和目标机之间一般通过串口连接，Boot Loader软件在执行时通常会通过串口来进行I/O操作，例如：输出打印信息到串口，从串口读取用户控制字符等。
+
+Boot Loader的启动过程
+	Boot Loader分为单阶段和多阶段两类。
+	多阶段的Boot Loader能提供更为复杂的功能，以及更好的移植性。从固态存储器上启动的Boot Loader大多时两阶段的启动过程。具体分为stage1和stage2。
+
+Boot Loader的操作模式
+	大多Boot Loader都有两个操作模式：
+		启动加载(正常使用)：即Boot Loader从目标机上的某个固态存储器上将操作系统加载到ram中运行，整个过程没有用户的介入。这是Boot Loader的正常工作模式。
+		下载模式(开发人员用)：目标机上的Boot Loader将通过串口或网络连接从主机(host)上下载文件，例如内核映像和根文件系统等。下载的文件首先放在ram中，然后被Boot Loader写到固态存储器中。Boot Loader的这种模式通常在第一次安装内核与根文件系统时使用。
+
+重点Boot Loader介绍
+	LILO：Linux Loader，Linux草创时期提出的Boot Loader，现在由John Coffman维护，有详细的文档。在lilo.go.dyndns.org可以获得最新版本。
+	GRUB：GRand Unified Boot Loader,是GNU计划的主要Boot Loader。
+	blob：LART硬件计划采用的Boot Loader。因为它的采用，blob被移植到许多使用arm的系统，使用非常广泛。blob不提供监控程序的能力。
+	U-Boot：公认的功能最多、最具弹性以及开发最积极的开放源码Boot Loader，受到各种支持者的支持。U-Boot以PPCBoot和ARMBoot为基础，大约支持100种PPC电路和十几种ARM电路
+	vivi是由mizi公司为ARM处理器系列设计的一个Boot Loader，目前只支持使用串口和主机通信，所以必须使用一条串口电缆来连接目标板和主机。作用如下：
+		把内核(kernel)从flash复制到RAM，然后启动它
+		初始化硬件
+		下载程序并写入flash(一般通过串口或者网络先把内核下载到RAM中，然后写入到flash)
+		检测目标板(Boot Loader会有一些简单的代码用以测试目标硬件的好坏)
+
+例：Boot Loader的简单实现
+/*Boot Loader，boot.S*/
+
+.equ	WTCON,	0x01d30000	//对控制寄存器地址做命名
+.equ	PCONE,	0x01d20028
+.equ	LOCKTIME, 0x01d8000c
+.equ	PLLCON,	0x01d80000
+.equ	CLKCON,	0x01d80004
+
+.globl _start			//表示程序开始
+_start:
+b reset				//无条件跳转到‘reset’
+add pc,pc,#0x0c000000		//中断向量表
+add pc,pc,#0x0c000000
+add pc,pc,#0x0c000000
+add pc,pc,#0x0c000000
+add pc,pc,#0x0c000000
+add pc,pc,#0x0c000000
+add pc,pc,#0x0c000000
+
+MEMORY_CONFIG:			//存放在标号memory_config下的用于配置内存的13个配置字
+.long	0x11110102
+.long	0x600
+.long	0x7ffc
+.long	0x7ffc
+.long	0x7ffc
+.long	0x7ffc
+.long	0x7ffc
+.long 	0x18000
+.long	0x18000
+.long	0x860459
+.long	0x10
+.long	0x20
+.long	0x20
+	
+/*复位地址*/
+reset:
+/*关看门狗*/		//处理器启动时做初始化操作，不希望被打断
+ldr r0, =WtCON
+ldr r1, =0x0
+str r1,[r0]
+
+/*设置端口控制寄存器Port E,打开RxD0和TxD0(串口输入输出)功能*/
+ldr r1, =PCON
+ldr r0, =0x25529
+str r0,[r1]
+
+/*设置系统时钟控制寄存器*/	//查数据手册
+ldr r1, =LOCKTIME
+ldrb r0, =0xfff
+strb r0,[r1]
+
+ldr r1, =PLLCON
+ldr r0, =0x78061
+str r0,[r1]
+
+ldr r1, =CLKCON
+ldr r0, =0x7ff8
+str r0,[r1]
+
+/*设置存储器*/
+memsetup:			//目的把配置字写入到对应的控制寄存器
+ldr r0, =MEMORY_CONFIG		//标识可以避免重复写13条指令
+ldmia r0,{r1-r13}		//从r0取出13个配置字到r1-r13中
+ldr r0, =0x01c80000		//内存控制寄存器的首地址给r0
+stmia r0,{r1-r13}		//把13个配置字送到r0指向的空间
+
+/*拷贝Flash地址0x10000内核到RAM地址0xc300000中*/
+ldr r0, =0x10000		//原地址头给r0
+ldr r1, =0xc300000		//目的地址头给r1
+add r2,r0,#(704 * 1024)		//地址头加内核大小给r2，r2即表示终止地址
+copy_kernel:
+ldmia r0!,{r3-r10}		//从r0拷贝8个字给r3-r10，！表示指针会跟着数据拷贝移动
+stmia r1!,{r3-r10}		//把拷贝出来的8个字送给r1指向的地址
+cmp r0,r2			//比较r0和r2，判断拷贝是否结束，每个循环拷贝8个字
+ble copy_kernel
+
+/*跳转到RAM中执行内核*/
+ldr r0, =0xc300000		//RAM地址给r0
+mov pc,r0			//RAM中内核起始地址给pc，即程序计数器，从而完成控制权的转移
