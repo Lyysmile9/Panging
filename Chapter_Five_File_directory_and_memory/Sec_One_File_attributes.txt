@@ -1,0 +1,40 @@
+Linux文件属性
+	Linux的大多数资源都以文件的形式存在
+		普通文件：以字节为单位进行访问
+		管道：有名管道、无名管道
+		目录：也称为目录文件
+		设备：字符特殊文件、块特殊文件
+		符号链接：到达另一个文件的路径
+		套接字：在不同机器间通信
+
+文件模式
+	文件的模式是一个16位的域，一般由八进制数来表示
+
+	****		***	     *********
+	————		———	     —————————
+	文件类型      修饰位	访问位(八进制表示)
+
+访问位控制
+	位掩码umask：设置新创建的文件或目录应关闭的权限位的掩码
+	umask系统调用
+		#include <sys/stat.h>
+		mode_t umask(mode_t newmask)
+	返回原来的mask值
+
+例：
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+	mode_t newmask = 0222, oldmask;
+
+	system("touch before");			//touch 命令创建before文件，系统默认权限644
+	oldmask = umask(newmask);		//0222关闭所有用户的w权限
+	printf("old mask is %#o\n", oldmask);
+	printf("new mask is %#o\n", newmask);
+	system("touch after");			//after应为444
+	exit(EXIT_SUCCESS);
+}
