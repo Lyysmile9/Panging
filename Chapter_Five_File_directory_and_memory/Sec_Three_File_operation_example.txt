@@ -1,0 +1,120 @@
+例：cat功能的实现
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(int argc, char *argv[])
+{
+	int temp;
+	FILE *fpr;
+
+	if(argc == 1)
+	{
+		printf("Parameter missing!\n");
+		exit(0);
+	}
+
+	if(fpr = fopen(argv[1], "r" ) == NULL)
+	{
+		printf("Can not open the source file!\n");
+		exit(0);
+	}
+
+	fseek(fpr, 0L, 0);
+	while(!feof(fpr));
+	{
+		temp = fgetc(fpr);
+		putchar(temp);
+	}
+
+	fclose(fpr);
+	return 0;
+}
+
+例：删除文件功能的实现
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(argc, argv[])
+{
+	int res;
+	if(argc == 1)
+	{
+		printf("Parameter missing!\n");
+		exit(0);
+	}
+
+	res = remove(argv[1];)
+	if(res == 0)
+	{
+		printf("deleted!\n");
+	} else if (res == -1) {
+		printf("error happend!\n");
+		exit(0);
+	}
+	return 0;
+}
+
+例：mv功能的实现
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(argc, argv[])
+{
+	int res;
+	if(argc != 3)
+	{
+		printf("Parameter error!\n");
+		exit(0);
+	}
+
+	res = rename(argv[1], argv[2]);
+	if(res == 0)
+	{
+		printf("success!\n");
+	} else {
+		printf("error!\n");
+	}
+	return 0;
+}
+
+例：cp功能的实现
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(argc, argv[])
+{
+	char c;
+	FILE *fp1, *fp2;
+
+	if(argc <= 2)
+	{
+		printf("Parameter missing!\n");
+		exit(0);
+	}
+
+	if((fp1 = fopen(argv[1], "rb") == NULL))
+	{
+		printf("Can not open the source file!\n");
+		exit(0);
+	}
+
+	if((fp2 = fopen(argv[2]), "a+") == NULL)
+	{
+		printf("can not establish the output file!\n");
+		exit(0);
+	}
+
+	fseek(fp1, 0L, 0);
+	fseek(fp2, 0L, 0);
+
+	while(!feof(fp1)) 
+	{
+		fread(&c, 1, 1, fp1);
+		fwrite(&c, 1, 1, fp2);
+	}
+	
+	fclose(fp1);
+	fclose(fp2);
+
+	return 0;
+}
