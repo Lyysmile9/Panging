@@ -1,0 +1,62 @@
+当前目录
+	找到当前目录
+		#include <unistd.h>
+		char* getcwd(char* buf, size_t size);
+	函数getcwd把当前目录的绝对路径名复制到buf中，该缓冲有size个字长，如果装不下完整路径，则返回NULL。
+
+例：pwd功能的实现
+#include <unistd.h>
+#include <stdio.h>
+
+int main()
+{
+	char buf[80];
+	
+	getcwd(buf, sizeof(buf));
+	printf("Current working directory:%s\n", buf);
+	return 0;
+}
+
+改变当前目录
+	改变当前目录的函数
+		#include <unistd.h>
+		int chdir(const char* path);
+	chdir用来将当前的工作目录改变成以参数path所指的目录。
+	执行成功则返回0，失败返回-1，errno为错误代码。
+
+例：改变当前目录
+#include <unistd.h>
+#include <stdio.h>
+
+int main(int argc, char* argv[])
+{
+	char c[80];
+
+	chdir(argv[1]);
+	printf("%s\n", getcwd(c, sizeof(c)));
+
+	return 0;
+}
+
+创建和删除目录
+	#include <unistd.h>
+	#include <sys/stat.h>
+
+	int mkdir(const char* path, mode_t mode);	//mode 决定文件权限
+	int rmdir(const char* path);
+
+	执行成功返回0，否则返回-1并设置errno
+
+mkdir和rmdir功能的实现
+#include <unistd.h>
+#include <sys/stat.h>
+#include <stdio.h>
+
+int main(int argc, char* argv[])
+{
+	mkdir(argv[1], 0);
+	getchar();		//演示查看创建目录用，等待输入
+	rmdir(argv[1]);
+
+	return 0;
+}
