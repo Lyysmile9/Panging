@@ -1,0 +1,73 @@
+进程的操作
+	传统Unix模型中有两个创建和修改进程的操作。
+		fork：用来创建一个新的进程，此进程几乎是当前进程的一个完全拷贝
+		exec：可以在进程中用另外的程序来替换掉当前进程运行的程序
+
+exec函数族
+	exec函数实际是包含了六个函数的函数族
+		#include <unistd.h>
+		int execl(const char* path, const char* arg, ...);
+		int execlp(const char* file, const char* arg, ...);
+		int execle(const char* path, const char* arg, char* const envp[]);
+		int execv(const char* path, char* const argv[]);
+		int execvp(const char* file, char* const argv[]);
+		int execve(const char* path, char* const argv[], char* const envp[]); 
+	execve函数
+		path：可执行文件路径
+		argv[]：完整的参数列表，包含argv[0],必须以NULL结束
+		envp[]：环境变量，可省略
+
+execve函数举例
+#include <unistd.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+int main(void)
+{
+	char *argv[] = {"/bin/ls", NULL};
+	if(execve("/bin/ls", argv, NULL) == -1)
+	{
+		perror("execve");
+		exit(EXIT_FAILURE);
+	}
+	puts("shouldn't get here");
+	exit(EXIT_SUCCESS)；
+}
+
+结论
+	"shouldn't get here"根本没有执行。
+	这是因为执行到execve函数时，进程的代码部分已经用新进程替换了，不会留下调用进程的任何痕迹。
+	也就是说，exec函数一旦执行成功，就不会返回它的调用者(失败返回-1，并设置errno)。
+
+举例
+	利用fork建立一个子进程，在此子进程中执行显示当前目录下所有文件的命令，同时父进程中显示父进程的PID号。
+
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+	pid_t child;
+	int status;
+	if((child = fork()) == -1) {
+		perror("fork");
+		exit(EXIT_FAILURE);
+	} else if(child == 0) {
+		puts("in child");
+		char *argv[] = {"ls -l"， NULL}；
+		if(execve("/bin/ls", argv, NULL) == -1) {
+			perror("execve");
+			exit(EXIT_FAILURE);
+		}
+		exit(EXIT_SUCCESS);
+	} else {
+		waitpid(child, &statu, 0);
+		puts("\nin parent");
+		printf("\tparent pid = %d\n", getpid());
+		printf("\tparent ppid = %d\n", getppid());
+		exit(EXIT_SUCCESS);
+}
+
