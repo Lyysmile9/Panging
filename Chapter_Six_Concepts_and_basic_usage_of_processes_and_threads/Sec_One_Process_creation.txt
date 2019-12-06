@@ -1,0 +1,61 @@
+Linux进程模型
+	进程是一个正在执行的程序的实例，由以下元素组成
+		程序的当前上下文，程序当前的执行状态
+		程序的当前执行目录
+		程序访问的文件和目录
+		程序的访问权限
+		内存以及其他分配给进程的系统资源
+
+进程标识
+	进程最重要的属性是进程号(PID),以及父进程号(PPID)。
+	一个进程有唯一的进程号，如果一个进程创建了一个子进程，那么它的进程号就是子进程的父进程号。
+	1号进程(init)：负责引导系统、启动守护进程以及运行其他必要的程序。
+
+取得进程号
+	#include <stdio.h>
+	#include <unistd.h>
+	#include <stdlib.h>
+
+	int main(void)
+	{
+		printf("PID = %d\n", getpid());		//获得当前进程的进程号
+		printf("PPID = %d\n", getppid());	//获得父进程的进程号
+		exit(EXIT_SUCCESS);
+	}
+
+fork系统调用
+	fork系统调用可以产生一个新进程
+		#include <unistd.h>
+		pid_t fork(void);
+	如果fork执行成功，就向父进程返回子进程的PID，并向子进程返回0.这意味着即使只调用一次fork,也会返回两次！
+	fork创建的子进程是父进程的副本，二者的UID、GID、环境、资源、打开的文件、共享的内存段等完全相同。但是PID和PPID不同。
+
+例：fork系统调用
+#include <unistd.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+	pid_t child;
+	if((child = fork()) == -1) {
+		perror("fork");
+		exit(EXIT_FAILURE);
+	} else if(child == 0) {
+		puts("in child");
+		printf("\tchild pid = %d\n", getpid());
+		printf("\tchild ppid = %d\n", getppid());
+		exit(EXIT_SUCCESS);
+	} else {
+		puts("in parent");
+		printf("\tparent pid = %d\n", getpid());
+		printf("\tparent ppid = %d\n", getppid());
+	}
+	exit(EXIT_SUCCESS);
+}
+
+分析
+	程序执行结果表明，不能预计父进程是在子进程之前还是之后运行，程序的执行是无序的(异步的)，因此，不应该在子进程中执行依赖于父进程的代码，反之亦然，因为二者异步执行
+	父进程由bash启动
+	父进程先执行结束，则子进程将系统守护进程systemd作为自己的父进程
