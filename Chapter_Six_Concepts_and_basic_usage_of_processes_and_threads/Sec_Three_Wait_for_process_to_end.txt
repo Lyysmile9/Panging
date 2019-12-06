@@ -1,0 +1,53 @@
+等待进程结束
+	wait函数族最重要的两个函数是wait和waitpid函数
+		#include <sys/type.h>
+		#include <sys/wait.h>
+		pid_t wait(int * status);
+		pid_t waitpid(pid_t pid, int* status, int options);
+
+waitpid函数
+	waitpid()会暂时停止目前进程的执行，直到有信号来到或子进程结束，并收集子进程的资源。
+	如果在调用waitpid时子进程已经结束，则waitpid会立即返回子进程结束状态值。
+	子进程的结束状态值由参数status返回，而子进程的进程号也会一并返回。
+	如果执行成功则返回子进程号(PID),如果有错误发生则返回-1。失败原因存于errno中。
+
+waitpid函数参数
+	pid：欲等待的子进程号
+	status：保存子进程的结束状态
+	option：可以为0或下面的OR组合：
+		WNOHANG如果没有任何已经结束的子进程则马上返回
+		WUNTRACED如果子进程进入暂停执行情况则马上返回，但结束状态不予以理会。
+
+例：等待子进程结束
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+	pid_t child;
+	int status, child_pid;
+	if((child = fork()) == -1) {
+		perror("fork");
+		exit(EXIT_FAILURE);
+	} else if(child == 0) {
+		pust("in child");
+		printf("\tchild pid = %d\n", getpid());
+		printf("\tchild ppid = %d\n", getppid());
+		exit(EXIT_SUCCESS);
+	} else { /*wait for the child to exit*/
+		child_pid = waitpid(child, &status, 0);
+		printf("in parent\n");
+		printf("\t parent pid = %d\n", getpid());
+		printf("\tchild exited with %d\n", status);
+		printf("\tchild pid is %d\n", child_pid);
+	}
+	exit(EXIT_SUCCESS);
+}
+
+	在子进程退出前加一句getchar();
+	在父进程退出前也加一句getchar();
+	然后运行程序，另开一个终端将子进程kill -9
+	程序将会继续往下走，可以看到子进程的退出返回值为9
