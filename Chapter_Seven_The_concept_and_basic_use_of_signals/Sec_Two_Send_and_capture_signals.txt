@@ -1,0 +1,83 @@
+信号处理函数
+	程序可以用signal库函数来处理信号：
+		#include <signal.h>
+		void (*signal(int sig, void(*func)(int)))(int);
+	signal是一个带有sig和func两个参数的函数，准备捕获或忽略的信号由参数sig给出，接收到指定的信号后将要调用的函数由func给出。
+	信号处理函数必须有一个int类型参数(即接收到的信号代码),并且返回值为void*
+	signal函数本身也返回一个同类型的函数(指针),即先前用来处理这个信号的函数
+	func取值也可为下列两个宏：
+		SIG_IGN：忽略信号
+		SIG_DFL：恢复默认行为
+
+signal函数举例：响应控制台信号
+	编写程序signal.c，它响应用户敲入的组合键ctrl+c，在屏幕上打印出一条适当的消息，而不是终止程序，当用户第二次按下此组合键时，终止程序。
+	#include <signal.h>
+	#include <stdio.h>
+	#include <unistd.h>
+
+	void sig_alarm(int sig)
+	{
+		printf("===the signal received is %d. \n", sig);
+		signal(SIGINT, SIG_DFL);
+	}
+
+	int main()
+	{
+		signal(SIGINT, sig_alarm);
+	
+		while(1)
+		{
+			printf("waiting here!\n");
+			sleep(1);
+		}
+		return 0;
+	}
+
+发送信号
+	进程可以通过通过调用kill函数向包括它本身在内的其他进程发送一个信号。
+	要想发送一个信号，发送进程必须拥有相应的权限，通常两个进程必须拥有相同的用户ID，进程只能发送信号给属于同一个用户的其他进程。
+	kill调用失败可能的原因：
+		给定的信号无效
+		发送进程权限不够
+		目标进程不存在
+
+例：发送信号
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+
+static int alarm_fired = 0;
+
+void ding(int sig)
+{
+	alarm_fired = 1;
+}
+
+int main()
+{
+	int pid;
+	printf("alarm application starting\n");
+	if((pid = fork()) == 0)
+	{
+		sleep(5);
+		kill(getppid(), SIGALRM);
+		exit(0);
+	}
+	printf("waiting for alarm to go off\n");
+	signal(SIGALRM, ding);
+	pause();	//suspend until a signal is received
+			//pause() shall return after the signal-catching
+			//function returns
+	if(alarm_fired)
+		printf("Signal is received!\n);
+	
+	printf("done\n");
+	exit(0);
+}
+运行结果
+alarm application starting
+waiting for alarm to go off
+(等待5s...)
+Signal is received！
+done
