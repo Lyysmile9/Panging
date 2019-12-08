@@ -52,3 +52,113 @@ msgctl函数
 			#include <sys/shm.h>
 			int msgctl(int msgid, int command, struct msgid_ds *buf);
 
+消息队列举例
+	编写两个程序，receive.c用于接收消息，send.c用于发送消息。
+ 	允许两个程序创建消息队列，但只有接收者在接收完最后一个消息之后可以删除它。
+
+/*receive.c*/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+struct my_msg_st	//消息结构体
+{
+	long int my_msg_type;	//长整型变量，表示消息类型
+	char some_text[BUFSIZ]; //消息真正的内容
+};
+
+int main()
+{
+	int running = 1;
+	int msgid;
+	struct my_msg_st some_data;
+	long int msg_to_receive = 0;	//接收优先级，从队列头接收
+
+	msgid = msgget((key_t)1234, 0666 | IPC_CREAT); //生成一个消息队列
+	if(msgid == -1)
+	{
+		fprintf(stderr, "msgget failed with error:%d\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	while(running)
+	{
+		if(msgrcv(msgid, (void *)&some_data, BUFSIZ,
+			msg_to_receive, 0) == -1) //试图接收消息，接收到的消息放入some_text缓冲中。
+		{
+			fprintf(stderr, "msgrcv failed with error: %d\n",errno);
+			exit(EXIT_FAILURE);
+		}
+		printf("You wrote:%s", some_data.some_text); //打印消息
+		if(strncmp(some_data.some_text, "end", 3) == 0) //退出接收条件
+			running = 0;
+	}
+	
+	if(msgctl(msgid, IPC_RMID, 0) == -1) //删除消息队列
+	{
+		fprintf(stderr, "msgctl(IPC_RMID) failed\n");
+		exit(EXIT_FAILURE);
+	}
+	exit(EXIT_SUCCESS);
+}
+
+/*send.c*/
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+#define MAX_TEXT 512
+
+struct my_msg_st
+{
+	long int my_msg_type;
+	char some_text[MAX_TEXT];
+};
+
+int main()
+{
+	int running = 1;
+	struct my_msg_st some_data;
+	int msgid;
+	char buffer[BUFSIZ];
+
+	msgid = msgget((key_t)1234, 0666 | IPC_CREAT); //获得和receive相同的消息队列标识符
+	if(msgid == -1)
+	{
+		fprintf(stderr, "msgget failed with error:%d\n", errno);
+		exit(EXIT_FAILURE);
+	}
+
+	while(running)
+	{
+		printf("Enter some text: ");
+		fgets(buffer, BUFSIZ, stdin);
+		some_data.my_msg_type = 1;	//不影响receive，因为receive会从队列头接收
+		strcpy(some_date.some_text, buffer); //将buffer中的信息复制到消息结构体some_text成员中
+
+		if(msgsnd(msgid, (void *)&some_data, MAX_TEXT, 0) == -1) //发送消息
+		{
+			fprintf(stderr, "msgsnd failed\n");
+			exit(EXIT_FAILURE);
+		}
+		
+		if(strncmp(buffer, "end", 3) == 0) //判断程序是否需要结束
+			running = 0;
+	}
+	exit(EXIT_SUCCESS);
+}
+运行结果：
+先运行receive：		然后运行send.c：
+			Enter some text: 1234	//等待输入
+You wrote: 1234		Enter some text: end
+You wrote: end
