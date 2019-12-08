@@ -1,0 +1,54 @@
+消息队列
+	消息队列提供了一种从一个进程向另一个进程发送一个数据块的方法，该数据块可以被认为带有一个类型，接收进程可以独立接收不同类型的数据块。
+	每个数据块都有一个最大长度的限制，系统中所有队列包含的全部数据块的总数也有限制。
+
+msgget函数
+	该函数用来创建和访问一个消息队列。和其他IPC机制一样，程序必须提供一个键值来命名某个特定的消息队列。
+		#include <sys/types.h>
+		#include <sys/ipc.h>
+		#include <sys/shm.h>
+		int msgget(key_t key, int msgflg);
+	第二个参数由权限位组成，可以与IPC_CREAT标识相或，调用成功返回正整数的队列标识符。
+
+msgsnd函数
+	该函数用来向消息队列中添加一条消息。
+		消息的长度必须小于系统规定的上限。
+		消息必须以一个长整型成员变量开始，接收函数将用这个变量来确定消息的类型。
+		#include <sys/types.h>
+		#include <sys/ipc.h>
+		#include <sys/shm.h>
+		int msgsnd(int msgid, const void* msg_ptr, size_t msg,
+			int msgflg);
+	msgid：msgget函数返回的消息队列标识符。
+	msg_ptr：指向准备发送消息的指针，消息以一个长整型成员变量开始。
+	msg_sz：消息的长度，不包括长整型消息类型成员变量的长度。
+	msgflg：控制当消息队列满或队列消息到达系统上限时发生的事情。
+		IPC_NOWAIT：函数立刻返回，不发出消息；否则进程挂起等待消息队列腾出可用空间。
+
+msgrcv函数
+	该函数用来从消息队列中读取一条消息。
+		成功时函数返回放到接收缓冲区中的字节数，消息被拷贝到由msg_ptr指向的用户分配的缓存区中，然后删除消息队列中的对应消息，失败返回-1。
+		#include <sys/types.h>
+		#include <sys/ipc.h>
+		#include <sys/shm.h>
+		int msgrcv(int msgid, void* msg_ptr, size_t msg_sz,
+			long int msgtype, int msgflg);
+	msgid：msgget函数返回的消息队列标识符。
+	msg_ptr：指向准备接收消息缓冲区的指针，消息以一个长整型变量开始。
+	msg_sz：消息的长度，不包括长整型消息类型成员变量的长度。
+	msg_type：接收优先级。如果值为0，即取出消息队列中的第一个消息；
+		如果为正数，将取出具有相同消息类型的消息；
+		如为负数，将取出消息类型小于或等于msg_type绝对值的第一个消息。
+	msgflg：控制当当前消息队列中没有相应类型消息可以接收时发生的事情。
+		IPC_NOWAIT：函数立刻返回，返回值为-1；
+		否则进程挂起以等待一条对应消息的到来。
+
+msgctl函数
+	该函数作用与共享内存的控制函数很相似。
+		成功返回0，失败返回-1
+		如果删除消息队列时，一个进程正在msgsnd或msgrcv函数中等待，则这两个函数将失败。
+			#include <sys/types.h>
+			#include <sys/ipc.h>
+			#include <sys/shm.h>
+			int msgctl(int msgid, int command, struct msgid_ds *buf);
+
