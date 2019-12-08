@@ -1,0 +1,127 @@
+IPC机制
+	Linux有多种进程间通信(IPC)方式，如果没有IPC，进程只能通过文件系统互相交换信息。
+	常用的IPC有如下几种：
+		管道		共享内存
+		信号量		消息队列
+
+管道
+	管道分为两种：
+		无名管道(pipe)：是与内存中的一个索引节点相关联的两个文件描述符，没有名字，不会在文件系统中出现。在有相互继承关系的进程中使用。
+		有名管道(fifo)：出现于文件系统当中，遵循先入先出的原则来读取数据。不相关的进程可以使用。
+	pipe、fifo的名称并非硬性规定
+	
+		| $ls ./ | less |
+	 ———————|———————————————|——————————
+	|进程1  |    ————————   |     进程2|
+	| ls ./————>|无名管道|————>less	   |
+	|	|    ————————   |          |
+	 ———————|———————————————|——————————
+		|     管道	|
+  ——————————————|———————————————|———————————————
+ |进程2		|    ————————	|	   进程1|
+ | ls ./>fifo——————>|有名管道|——————>less<./fifo|
+ |		|    ————————	|		|
+  ——————————————————————————————————————————————
+  		|		|
+
+无名管道
+	管道是半双工，数据只能单向传递
+	管道只能在相关的、有共同祖先的进程之间使用
+
+创建无名管道
+	创建管道使用pipe调用，关闭管道使用close调用
+		#include <unistd.h>
+		int pipe(int fileds[2]);
+	如果成功建立了管道，则会打开两个文件描述符并把它们的值保存在一个整数数组中。
+	其中，fileds[0]用于读出数据，fileds[1]用来写入数据。
+	成功返回0，否则返回-1。
+例：无名管道创建
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+int main(void)
+{
+	int fd[2];	//Array for file descriptions
+
+	if((pipe(fd)) < 0)
+	{
+		peeror("pipe");
+		exit(EXIT_FAILURE);
+	}
+	printf("descriptors are %d, %d\n", fd[0], fd[1]);
+	close(fd[0]);
+	close(fd[1]);
+	exit(EXIT_SUCCESS);
+}
+运行结果：
+descriptors are 3,4
+/*0,1,2描述符被系统使用，分别代表标准输入、标准输出和标准错误*/
+
+读写管道
+	从管道读出数据和写入数据，只要简单的使用read和write调用即可。
+	read从fd[0]中读取数据，write向fd[1]中写入数据。
+		如果父进程向子进程发送数，则父进程需要关闭fd[0]并向fd[1]写入数据，子进程需关闭fd[1]，并从fd[0]读取数据。
+		反之亦然
+
+例：cat功能的又一实现
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <linits.h>
+
+#define BUFSZ PIPE_BUF
+
+void err_quit(char *msg);
+
+int main(int argc, char *argv[])
+{
+	int fd[2];	//File descriptor array for the pipe
+	int fdin;	//Descriptor for input file
+	char buf[BUFSZ];
+	int pid, len;
+	/*Create the pipe*/
+	if((piep(fd)) < 0)
+		err_quit("pipe");
+
+	/*Fork and close the appropriate descriptors*/
+	if((pid = fork()) < 0)
+		err_quit("fork");
+	if(pid == 0) {
+	/*Child is reader,close the write descriptor*/
+		close(fd[1]);
+		while((len = read(fd[0], buf, BUFSZ)) > 0)
+			write(STDOUT_FILENO, buf, len);		//显示在屏幕
+		close(fd[0]);
+	} else {
+		/*Parent is writer,close the read descriptor*/
+		close(fd[0]);
+		if((fdin = open(argv[1], O_RDONLY)) < 0) {
+			perror("open");
+			/*Send something*/
+			write(fd[1], "123\n", 4);
+		} else {
+			while((len = read(fdin, buf, BUFSZ)) >0)
+				write(fd[1], buf, len);
+			close(fdin);
+		}
+		/*Close the write descriptor*/
+		close(fd[1]);
+	}
+	/*Reap the exit status*/
+	waitpid(pid, NULL, 0);
+	exit(EXIT_SUCCESS);
+}
+void err_quit(char *msg)
+{
+	perror(msg);
+	exit(EXIT_FAILURE);
+}
+运行结果：
+如果不加参数运行：
+open：Bad address
+123
+加上参数即可实现cat效果
