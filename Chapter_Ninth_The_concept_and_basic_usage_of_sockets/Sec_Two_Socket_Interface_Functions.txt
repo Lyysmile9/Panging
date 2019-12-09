@@ -1,0 +1,75 @@
+创建套接字
+	socket系统调用创建一个套接字，并返回一个描述符，该描述符可以用来访问这个套接字。
+	创建的套接字是一条通信链路的一个端点。
+		#include <sys/types.h>
+		#include <sys/socket.h>
+		int socket(int domain, int type, int protocol);
+	domain：指定域
+	type：指定套接字的通信类型
+	protocol：指定使用的协议
+
+套接字地址
+	每个套接字域都有自己的地址格式
+		AF_UNIX：地址格式由sockaddr_un来描述
+			struct sockaddr_un {
+				sa_family_t sun_family;		//AF_UNIX
+				char sun_path[];		//pathname
+			};
+		AF_INET：地址格式由sockaddr_in来指定
+			struct sockaddr_in {
+				short int sin_family;		//AF_INET
+				unsigned short int sin_port;
+				struct in_addr sin_addr;	//struct in_add {unsigned long int s_addr}; //四字节的IP地址
+			}
+
+命名套接字
+	要想让通过socket调用创建的套接字可以被其他进程使用，服务器程序必须给套接字命名，这样AF_UNIX套接字才会关联到一个文件系统的路径名上，AF_INET套接字关联到一个IP的端口上。
+	bind调用把参数address中的地址分配给文件描述符socket关联的未命名套接字，地址长度由address_len来传递。
+		#include <sys/socket.h>
+		ing bind(int socket, const struct sockaddr* address, size_t address_len);
+
+关于地址
+	地址长度取决于地址族，bing调用将一个特定的地址结构指针转换为指向通用地址类型：struct sockaddr*
+		#include <sys/socket.h>
+		int bind(int socket, const struct sockaddr* address, size_t address_len);
+	网络套接字地址类型：struct sockaddr_in
+	本地文件系统地址类型：struct sockaddr_un
+
+bind的返回值
+	bind函数调用成功返回0，失败返回-1，并把errno设置为下表值。
+		EBADF			文件描述符无效
+		ENOTSOCK		文件描述符对应的不是一个套接字
+		EINVAL			文件描述符对应的是一个已命名的套接字
+		EADDRNOTAVATL		地址不可用
+		EADDRINUSE		地址已绑定了一个套接字
+		EACCESS			因权限不足，不能创建文件系统中的路径名
+		ENOTDIR,ENAMETOOLONG	表明选择的文件名不符合要求
+
+创建套接字队列
+	为了能够在套接字上接受进入的连接，服务器程序必须创建一个队列来保持未处理的请求，它用listen系统调用来完成这一工作。
+		#include <sys/socket.h>
+		int listen(int socket, int backlog);
+	当服务器正忙于处理一个客户请求时，后续的客户连接放入队列等待处理。函数执行成功返回0，失败返回-1.
+	套接字队列中，等待处理的进入连接的个数最多不超过backlog这个数字，多出的连接请求将被拒绝，导致客户连接失败。
+
+接受连接
+	一旦服务器程序创建并命名了套接字之后，就可以通过accept系统调用来等待客户建立对该套接字的连接。
+		#include <sys/socket.h>
+		int accept(int socket, struct sockaddr* address, size_t* address_len);
+	连接客户的地址将被放入address参数指向的sockaddr结构中。
+	address_len指定客户结构的长度，如果客户地址的长度超出这个值将被截断，所以必须先得到这个合适的值。
+
+关于accept调用
+	accept函数只有当客户程序试图连接到由socket参数指定的套接字上时才返回，否则将一直阻塞。
+	accept函数将创建一个新的套接字来与该客户通信，并且返回新套接字的描述符，新套接字的类型与服务器监听套接字一致。
+
+请求连接
+	客户程序通过一个未命名套接字与服务器监听套接字之间建立连接，以此来连接到服务器。
+		#include <sys/socket.h>
+		int connect(int socket, struct sockaddr* address, size_t address_len);
+	参数socket指定套接字将连接到参数address指定的服务器套接字，address指定的结构长度由参数address_len指定。
+	如果连接不能立刻建立，connect调用将阻塞一段不确定的超时时间。一旦超时时间到达，连接将被放弃，connect调用失败。
+
+关闭套接字
+	可以通过close函数终止服务器和客户上的套接字连接，操作过程与对文件描述符进行关闭一样。
+	应该在连接的两端都关闭套接字。
