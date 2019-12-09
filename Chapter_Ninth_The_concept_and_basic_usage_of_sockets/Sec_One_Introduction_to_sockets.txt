@@ -36,3 +36,74 @@ Windows对套接字的支持
 		数据报套接字：由SOCK_DGRAM指定，基于UDP/IP协议，不建立和维持可靠连接，开销小，服务器崩溃不需要客户端重启，因为基于数据报的服务器不保留连接信息
 	
 	协议：我们重点讨论网络套接字和文件系统套接字，不需要选择特定协议，只要默认值(0)即可。
+
+套接字举例
+	客户端程序：创建一个未命名的套接字，然后把它连接到服务器套接字server_socket上，向服务器写一个字符，再读回经服务器处理后的一个字符。
+	服务器端程序：首先创建一个服务器套接字，绑定到一个名字，然后创建一个监听队列，接收来自客户程序的连接。
+
+/*服务器端程序*/
+#include <sys/typesh>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <sys/un.h>						//套接字域地址格式，定义在
+#include <unistd.h>						//sys/un.h中：
+								//struct
+int main()							//{
+{								//	short int sun_family;	
+	int server_sockfd, client_sockfd; //定义套接字标识符	//	char sun_path[108];
+	int server_len, client_len;	//地址长度		//};
+	struct sockaddr_un server_address;
+	struct sockaddr_un client_address;
+	unlink("server_socket");				 //如果当前目录有叫做server_socket的文件，则删掉。
+	server_sockfd = socket(AF_UNIX, SOCK_STREAM, 0); 	//创建一个AF_UNIX格式的socket，采用字节流方式，默认协议，并返回此socket的文件描述符。
+	server_address.sun_family = AF_UNIX;					//为socket命名：设置Unix/Linux文件系统本地套接字地址
+	strcpy(server_address.sun_path, "server_socket"); 		       //本地名称
+	servet_len = sizeof(server_address);				      //地址长度
+	bind(server_sockfd, (struct sockaddr *)&server_address, server_len); //命名套接字
+	listen(server_sockfd, 5);			   //创建长度为5的监听队列
+	while(1)					  //等待客户端连接的到来
+	{
+		char ch;
+		printf("server waiting\n");
+		client_len = sizeof(client_address);	//获取客户端套接字地址长度
+		client_sockfd = accept(server_sockfd,  //服务器进程阻塞自身，直到有客户端请求建立连接，此时生成一个新的套接字，并返回套接字的描述符
+			(struct sockaddr *)&client_address, &client_len); //用此新套接字与客户进行通信，新套接字类型与服务器监听套接字类型是一样的
+		read(client_sockfd, &ch, 1);
+		ch++;
+		write(client_sockfd, &ch, 1);
+		close(client_sockfd);
+	}
+}
+
+/*客户端程序*/
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <stdio.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+int main()
+{
+	int sockfd;
+	int len;
+	struct sockaddr_un address;
+	char ch = 'A';
+	sockfd = socket(AF_UNIX, SOCK_STREAM, 0); //为客户创建一个套接字
+	address.sun_family = AF_UNIX; //根据服务器的情况设定连接地址
+	strcpy(address.sun_path, "server_socket"); //服务器地址
+	len = sizeof(address);	//地址长度
+	result = connect(sockfd, (struct sockaddr *)&address, len); //连接到服务器套接字
+	if(result == -1)	//出错则退出
+	{
+		perror("oops: client1");
+	}
+	write(sockfd, &ch, 1);	//通过套接字文件描述符读写信息
+	read(sockfd, &ch, 1);
+	printf("char from server = %c\n", ch);
+	close(sockfd);
+	exit(0);
+}
+运行结果：
+先运行服务器程序：	然后运行客户端程序：
+server waiting		char from server = B
+server waiting
