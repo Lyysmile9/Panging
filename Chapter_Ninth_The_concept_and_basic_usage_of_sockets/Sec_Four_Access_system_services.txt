@@ -1,0 +1,66 @@
+通过套接字访问系统提供的标准服务
+	通过前面介绍的内容，现在可以连接到任何有名字的主机。
+	连接到一个标准服务以替代对字符操作的前述例子
+	Unix/Linux系统一般提供daytime标准服务，客户可以连接到这个服务来查看服务器的当前日期和时间。
+
+首先需要打开daytime服务
+	首先安装网络守护进程服务程序xinetd
+		$sudo apt-get install xinetd
+	在/etc/xinetd.d路径下，可以看到chargen、daytime、echo等服务
+		$ls /etc/xinetd.d
+	daytime服务默认是关闭的，用vi打开daytime，将其中的disable=yes，改为disable=no,保存。然后执行如下命令完成服务开启。
+		$sudo /etc/init/xinetd restart
+
+例：
+/*连接到主机的标准服务*/
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[])
+{
+	char *host;
+	int sockfd;
+	int len, result;
+	struct sockaddr_in address;
+	struct hostent *hostinfo;
+	struct servent *servinfo;
+	char buffer[128];
+	if(argc == 1)
+		host = "localhost";
+	else
+		host = argv[1];
+	hostinfo = gethostbyname(host);	//主机数据库函数，获取主机相关信息
+	if(!hostinfo)
+	{
+		fprintf(stderr, "no host:%s\n", host);
+		exit(1);
+	}
+	servinfo = getservbyname("daytime","tcp"); //服务及端口有关的服务信息函数，目的是获取daytime服务的端口号
+	if(!servinfo)
+	{
+		fprintf(stderr, "no daytime service\n");
+		exit(1);
+	}
+	printf("daytime port is %d\n", ntohs(servinfo->s_port)); //显示daytime服务的端口号，并建立套接字
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	address.sin_family = AF_INET;
+	/*按照地址和端口号，连接系统daytime服务*/
+	address.sin_port = servinfo->s_port;
+	address.sin_addr = *(struct in_addr *)*hostinfo->h_addr_list;
+	len = sizeof(address);
+	result = connect(sockfd, (struct sockaddr *)&address, len);
+	if(result == -1)
+	{
+		perror("oops:getdate");
+		exit(1);
+	}
+	/*读取并显示系统日期和时间*/
+	result = read(sockfd, buffer, sizeof(buffer));
+	buffer[result] = '\0';
+	printf("read %d bytes:%s", result, buffer);
+	close(sockfd);
+	exit(0);
+}
