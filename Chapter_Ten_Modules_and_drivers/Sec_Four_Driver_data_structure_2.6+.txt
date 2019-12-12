@@ -1,0 +1,87 @@
+file结构体
+	file结构体代表一个打开的文件，系统中每个打开的文件在内核空间都有一个关联的struct file，它由内核在打开文件时创建，在文件的所有实例都关闭之后，内核释放这个数据结构。
+	struct file
+	{
+		...
+		struct path f_path;
+		struct inode *f_inode;
+		const struct file_operations *f_op;	//文件关联的操作
+		...
+		fmode_t f_mode;				//文件的访问模式
+		...
+		void* private_data;			//文件私有数据
+		...
+	}
+
+cdev结构体
+	在Linux内核中，使用cdev结构体来描述一个字符设备。
+		struct cdev
+		{
+			struct kobject kobj;		//内嵌的kobject对象
+			struct module *owner;		//所属模块
+			strcut file_operations *ops;	//文件操作结构体
+			dev_t dev;			//设备号
+			unsigned int count;
+		}
+	MAJOR(dev_t dev)
+	MINOR(dev_t dev)
+	MKDEV(int major, int minor)
+
+cdev结构体操作函数
+	cdev_alloc()函数用于动态申请一块cdev类型内存。
+	cdev_init()函数用于初始化cdev成员。
+	cdev_add()函数用于向系统添加一个cdev，完成字符设备的注册。
+	cdev_del()函数用于从系统删除一个cdev，完成字符设备的注销。
+
+分配和释放设备号
+	在使用cdev_add()向系统注册字符设备之前应先申请设备号，采用如下函数：
+	已知设备号：
+		int register_chrdev_region(dev_t from, unsigned count, const char *name);
+	由系统自动分配设备号
+		int alloc_chrdev_region(dev_t *dev, unsigned baseminor,
+			unsigned count, const char *name);
+	在使用cdev_del()函数注销字符设备之后，应释放设备号，采用如下函数：
+		void unregister_chrdev_region(dev_t from, unsigned count);
+
+file_operations结构体
+	struct file_operations {
+		struct module *owner;
+		loff_t(*llseek)(struct file *, loff_t, int);	//修改一个文件的当前读写位置，并将新位置返回
+		ssize_t(*read)(struct file *, char __user *, size_t, loff_t*);	//从设备中读数据，成功时返回读到的字节数
+		ssize_t(*write)(struct file *, char __user *, size_t, loff_t *);  //向设备发送数据，成功时返回写入的字节数
+		int (*unlocked_ioctl)(struct file *, unsigned int, unsigned long); //提供设备相关控制命令
+		int (*mmap)(struct file *, struct vm_area_struct *); //将设备内存映射到进程的虚拟地址空间中
+		int (*open)(struct inode *, struct file *); //打开设备
+		int (*release)(struct inode *, struct file *); //关闭设备
+		...
+	};
+
+内核空间与用户空间之间复制数据的方法
+	在用户空间不能直接访问内核空间的内存，因此借助下面两个函数，分别用来把数据从用户空间拷贝到内核空间，以及把数据从内核空间拷贝到用户空间。
+	unsigned long copy_from_user(void *to, const void __user *from,
+		unsigned long count);
+	unsignded long copy_to_user(void __user *to, const void *from,
+		unsigned long count);
+
+字符设备驱动结构
+	      ————————————————————————————————————————————————	
+	     |			初始化/添加/绑定 ———————————— |  ————————
+	     |			————————————————|模块加载函数||	|用户空间|
+  ————————   | 对应    ————    |   		 ———————————— |  ————————
+ |字符设备|<—|———————>|cdev|<———   			      |	     |调用
+  ————————   |	       ————    |  	删除	 ———————————— |	     V
+  	     | 		|       ————————————————|模块卸载函数||  —————————————
+	     |	     ——— —————————               ———————————— |	|Linux系统调用|
+	     |	    |		  |			      |  —————————————
+	     |	    V		  V			      |	     |
+	     |	  —————   ———————————————		      |	     |
+	     | 	 |dev_t| |file_operations|		      |	  间 |
+	     |    —————   ———————————————		      |	  接 |
+	     |			  |			      |	  调 |
+	     |	     ————————————— ———			      |	  用 |
+	     |	    |	    |	      |	       		      |	     |
+	     |	    V	    V	      V	       		      |	     |
+	     |	——————   ———————   ———————   —————	      |	     |
+	     | |read()|	|write()| |ioctl()| | ... |<—————————————————	      
+	     |  ——————   ———————   ———————   —————字符设备驱动|
+	      ————————————————————————————————————————————————
