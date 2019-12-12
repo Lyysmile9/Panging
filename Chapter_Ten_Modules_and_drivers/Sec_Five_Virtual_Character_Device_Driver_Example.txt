@@ -1,0 +1,209 @@
+Globalmem虚拟设备驱动实例
+	在内核空间申请一块4KB内存用于模拟一个设备，并在驱动中提供针对这块内存的读、写、控制和定位函数，以供用户空间的进程能通过Linux系统调用获取或者设置这块内存的内容。
+	虚拟设备驱动vs真实硬件设备驱动;没有本质区别，同样是写控制寄存器和读状态寄存器，即对设备内部的存储区域进行各种类型的访问。
+
+/*
+*a simple char device driver: globalmem without mutex
+*
+*Copyright(C)2014 Barry Song (baohua@kernel.org)
+*
+*Licensed under GPLv2 or later.
+*/
+#include <linux/module.h>
+#include <linux/fs.h>
+#include <linux/init.h>
+#include <linux/cdev.h>
+#include <linux/slab.h>
+#include <linux/uaccess.h>
+
+#define GLOBALMEM_SIZE 0x1000	//虚拟设备内存4K
+#define MEM_CLEAR 0X1		//控制命令
+#define GLOBALMEM_MAJOR 230	//主设备号
+/*可选的模块参数，用于改变主设备号*/
+static int globalmem_major = GLOBALMEM_MAJOR;
+module_param(globalmem_major, int, S_IRUGO);
+/*定义结构体(虚拟设备)，及对应指针*/
+struct globalmem_dev {
+	struct cdev cdev;
+	unsigned char mem[GLOBALMEM_SIZE];
+	};
+struct globalmem_dev *globalmem_devp;
+/*打开设备函数，私有数据设置*/
+static int globalmem_open(struct inode *inode, struct file *filp)
+{
+	filp->private_data = globalmem_devp;
+	return 0;
+}
+/*关闭设备*/
+static int globalmem_release(struct inode *inode, struct file *filp)
+{
+	return 0;
+}
+
+static long globalmem_ioctl(struct file *filp, unsigned int cmd.
+	unsigned long arg)
+{
+	/*获取私有数据指针*/
+	struct globalmem_dev *dev = filp->private_data;
+	/*如果是MEM_CLEAR命令，则清内存*/
+	switch(cmd) {
+		case MEM_CLEAR:
+			memset(dev->mem, 0, GLOBALMEM_SIZE);
+			printk(KERN_INFO "globalmem is set to zero\n");
+			break;
+		/*如果是其他命令，则返回错误标志*/
+		default:
+			return -EINVAL;
+	}
+	return 0;
+}
+
+static ssize_t globalmem_read(struct file *filp, char __user * buf,
+	size_t size, loff_t * ppos)
+{
+	unsigned long p = *ppos;	//读取位置相对于头文件的偏移量
+	unsigned int count = size;
+	int ret;
+	struct globalmem_dev *dev = filp->private_data;
+	if(p >= GLOBALMEM_SIZE)
+		return 0;
+	if(count > GLOBALMEM_SIZE - p)
+		count = GLOBALMEM_SIZE - p; //如果从当前位置开始读取的内容长度超过文件尾，则读取长度为当前位置之后的全部内容
+	if(copy_to_user(buf, dev->mem + p, count)) { //读取信息，复制到用户空间缓冲区
+		ret = -EFAULT;
+	} else {	//移动当前读写位置，并提示读到的字节数
+		*ppos += count;
+		ret = count;
+		printk(KERN_INFO "read %u bytes(s) from %lu\n", count, p);
+	}
+	return ret; 
+}
+
+static ssize_t globalmem_write(struct file *filp, const char __user * buf,
+	size_t size, loff_t * ppos)
+{
+	unsigned long p = *ppos;
+	unsigned int count = size;
+	int ret = 0;
+	struct globalmem_dev *dev = filp->private_data;
+	if(p >= GLOBALMEM_SIZE) //当前写入位置超出文件尾则直接返回0
+		return 0;
+	if(count > GLOBALMEM_SIZE - p)	//如从当前位置开始写入的数据长度超出文件尾，则写入数据长度为全部剩余空间
+		count = GLOBALMEM_SIZE - p;
+	if(copy_from_user(dev->mem + p, buf, count)) //写入信息，复制到内核空间缓冲区
+		ret = -EFAULT;
+	else {	//移动当前读写位置，并提示写入的字节数
+		*ppos += count;
+		ret = count;
+		printk(KERN_INFO "write %u bytes(s) from %lu\n", count, p);
+	}
+	return ret;
+}
+/*移动当前读写函数位置：seek()函数支持从头文件(orig为0),以及文件当前位置(orig为1)开始移动读写位置*/
+static loff_t globalmem_llseek(struct file *filp, loff_t offset, int orig)
+{
+	loff_t res = 0;
+	switch(orig) {
+		case 0:
+			if(offset < 0) {	//从头文件开始，如偏移量为负
+				ret = -EINVAL;
+				break;
+			}
+			/*从文件头开始，如偏移量超出文件长度*/
+			if((unsigned int)offset > GLOBALMEM_SIZE) {
+				ret = -EINVAL;
+				break;
+			}
+			/*移动当前读写位置*/
+			filp->f_ops = (unsigned int)offset;
+			ret = filp->f_pos;
+			break;
+		case 1:	/*从当前位置开始，如加偏移量超出文件尾*/
+			if((filp->f_ops + offset) > GLOBALMEM_SIZE) {
+				ret = -EINVAL;
+				break;
+			}
+			/*从当前位置开始，如加偏移量小于0*/
+			if((filp->f_pos + offset) < 0) {
+				ret = -EINVAL;
+				break;
+			}
+			filp->f_pos += offset;
+			ret = filp->f_pos;
+			break;
+		default：
+			ret = -EINVAL;
+			break;
+		}
+	return ret;
+}
+/*操作集定义及赋值*/
+static const struct file_operations globalmem_fops = {
+	.owner = THIS_MODULE,
+	.llseek = globalmem_llseek,
+	.read = globalmem_read,
+	.write = globalmem_write,
+	.unlocked_ioctl = globalmem_ioctl,
+	.open = globalmem_open,
+	.release = globalmem_release,
+};
+/*设备注册函数*/
+static void globalmem_setup_cdev(struct globalmem_dev *dev, int index)
+{
+	/*生成设备号*/
+	int err, devno = MKDEV(globalmem_major, index);
+	/**初始化设备文件结构体/
+	cdev_init(&dev->cdev, &globalmem_fops);
+	dev->cdev.owner = THIS_MODULE;
+	/*向系统注册设备*/
+	err = cdev_add(&dev->cdev, devno, 1);
+	if(err)
+		printk(KERN_NOTICE "Error %d adding globalmem %d\n", err, index);
+}
+/*模块加载函数*/
+static int __init globalmem_init(void)
+{
+	int ret;
+	/*生成主设备号*/
+	dev_t devno = MKDEV(globalmem_major, 0);
+	/*根据是否已有主设备号，选用不同函数向系统申请注册设备号*/
+	if(globalmem_major)
+		ret = register_chrdev_region(devno, 1, "globalmem");
+	else {
+		ret = alloc_chrdev_region(&devno, 0, 1, "globalmem");
+		globalmem_major = MAJOR(devno);
+	}
+	if(ret < 0)
+		return ret;
+	/*申请设备内存*/
+	globalmem_devp = kzalloc(sizeof(struct globalmem_dev), GFP_KERNEL);
+	if(!globalmem_devp) {
+		ret = -ENOMEM;
+		goto fail_malloc;
+	}
+	globalmem_setup_cdev(globalmem_devp, 0);
+	return 0;
+fail_malloc:
+	unregister_chrdev_region(devno, 1);
+	return ret;
+}
+module_init(globalmem_init);
+/*模块卸载函数*/
+static void __exit globalmem_exit(void)
+{
+	cdev_del(&globalmem_devp->cdev);
+	kfree(globalmem_devp);
+	unregister_chrdev_region(MKDEV(globalmem_major, 0), 1);
+}
+module_exit(globalmem_exit);
+MODULE_AUTHOR("Barry Song <baohua@kernel.org>")
+MODULE_LICENSE("GPL v2");
+/*操作步骤*/
+sudo -i
+insmod char_dev.ko
+lsmod
+cat /proc/devices
+mknod /dev/char_dev c 230 0
+echo "hello world" > /dev/char_dev
+cat /dev/char_dev
+
