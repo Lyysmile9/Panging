@@ -1,0 +1,39 @@
+Guaranteed initialization with the constructor
+>If a class has a constructor,the compiler
+automatically calls that constructor at the
+point an object is created,before client
+programmers can get their hands on the
+object.
+>The name of the constructor is the same as
+the name of the class
+
+Constructors with arguments
+>The constructor can have arguments to
+allow you to specify how an object is
+create,give it initialization values,and so on.
+	Tree(int i) {...}
+	Tree t(12);
+
+The destructor
+>In C++,cleanup is as important as initialization
+and is therefore guaranteed with the destructor.
+>The destructors is named after the name of the
+calss with a leading tilde(~).The destructor never
+has any arguments.
+
+When is a destructor called?
+>The destructor is called automatically by
+the compiler when the object goes out of scope.
+>The only evidence for a destructor casll is
+the closing brace of the scope that
+surrounds the object.
+
+Storage allocation
+>The compiler allocates all the storage for a
+scope at the opening brace of that scope.
+>The constructor call doesn't happen until
+the sequence point where the object is defined.
+
+The default constructor
+>A default constructor is one that can be called
+with no arguments.

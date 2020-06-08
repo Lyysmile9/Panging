@@ -1,0 +1,37 @@
+Reusing the implementation
+>Composition:construct new object with existing objects
+>It is the relationship of "has-a"
+
+Composition
+>Objects can be used	>For example, an
+to build up other	Empoyee has a
+objects				Name
+>Ways of inclusion		Address
+	Fully			Health Plan
+	By reference		Salary History
+>Inclusion by reference			Collection of Raise
+allows sharing				objects
+				Supervisor
+					Another Employee object
+
+Embedded objects
+>All embedded objects are initialized
+	The default constructor is called if
+		you don't supply the arguments, and there is a default
+		constructor(or one can be built)
+>Constructors can have initialization list
+	any number of objects separated by commas
+	is optional
+	Provide arguments to sub-constructors
+>Syntax:
+	name(args) [':' init-list] '{'
+
+Public vs. Private
+>It is common to make embedded objects
+	private:
+		~they are part of the underlying implementation
+		~the new class only has part of the public interface of
+		the old class
+>Can embed as a public object if you want to
+have the entire public interface of the
+subobject available in the new object

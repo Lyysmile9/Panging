@@ -1,0 +1,22 @@
+Initializer list
+	class Point {
+	private:
+		const float x, y;
+		Point(float xa = 0.0, float ya = 0.0)
+			: y(ya), x(xa) {}
+	};
+>Can initialize any type of data
+	pseudo-constructor calls for built-ins
+	No need to perform assignment within body of ctor
+>Order of initialization is order of declaration
+	Not the order in the list
+	Destroyed in the reverse order
+
+Initialization vs. assignment
+	Student::Student(string s):name (s) {}
+initialization
+before constructor
+	Student::Student (string s)
+assignment
+inside constructor
+string must have a default constructor

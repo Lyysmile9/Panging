@@ -1,0 +1,32 @@
+Setting limits
+>to keep the client programmer's hands off
+members they shouldn't touch.
+>to allow the library designers to change the
+internal workings of the structure without
+worrying about how it will affect the client
+programmer.
+
+C++ access control
+>The members of a class can be cataloged,
+marked as:
+	public
+	private
+	protected
+>public means all member declarations that
+follow are available to everyone.
+>The private keyword means that no one
+can access that member except inside
+function members of that type.
+
+Friends
+>to explicitly grant access to a function that
+isn't a member of the structure
+>The class itself controls which code has
+access to its members.
+>Can declare a global function as a friend,as
+well as a member function of another class,
+or even an entire class,as a friend.
+
+class vs. struct
+>class defaults to private
+>struct defaults to public

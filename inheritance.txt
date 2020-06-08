@@ -1,0 +1,39 @@
+Reusing the interface
+>Inheritance is to take the existing class, clone it,
+and then make additions and modifications to
+the clone
+
+Inheritance
+>Language implementation techique
+>Also an important component of the OO
+design methodology
+>Allows sharing of defign for
+	Member data
+	Member functions
+	Interfaces
+>Key technology in C++
+>The ability to define the behavior or
+implementation of one class as a superset of
+another class
+>Class relationship:Is-A
+	Employee	Base Class
+			Super
+			Parent
+
+	Manager		Derived Class
+			Sub
+			Child
+
+Scopes and access in C++
+						Public
+	client		Sees:		Base	int pub
+	class		pub		Class	Protected
+						int prot
+						Private
+						int priv
+Client	Sees:		Derived		Sees:
+Class	pub,pub2	Class		pub,prot
+				Public
+				int pub2
+				Protected
+				int prot2

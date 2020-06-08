@@ -1,0 +1,52 @@
+File,parameters,local variables
+>All three kinds of variable are able to store a value that
+is appropriate to their defined type.
+>Fields are define outside constructors and methods.
+>Fields are used to store data that persists throughout
+the life of an object.As such,they maintain the current
+state of an object.They have a lifetime that lasts as long
+as their object lasts.
+>Field have class scope:their accessibility extend
+throughout the whole class,and so they can be used
+within any of the constructors or methods of the class
+in which they are defined.
+>As long as they are defined as private,fields cannot be
+accessed from anywhere outside their defining class.
+>Formal parameters and local variables persist only for
+the period that a constructor or method executes.
+Their lifetime is only as long as a single call,so their
+values are lost between call.As such, they act as
+temporary rather than permanent storage locations.
+>Formal parameters are defined in the header of a
+constructor or method.They recive their values from
+outside,being initialized by the actual parameter values
+that form part of the constructor or method call.
+
+Call functions in a class
+	Point a;
+	a.print();
+>There is a relationship with the function be
+called and the variable calls it.
+>The function itself konws it is doing
+somethin with the variable.
+
+this:the hidden parameter
+>this is a hidden parameter for all member functions,
+with the type of the class
+	void Point::print()
+>can be regarded as
+	void Point::print(Point *p)
+
+>To call the function,you must specify a variable
+	Point a;
+	a.print();
+>can be regarded as
+	Point::print(&a);
+
+this:pointer to the caller
+>Inside member functions,you can use this
+as the pointer to the variable that calls the
+function.
+>this is a natural local variable of all class
+member functions that you can not define,but
+can use it directly.

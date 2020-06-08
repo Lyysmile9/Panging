@@ -1,0 +1,49 @@
+Dynamic memory allocation
+>new
+	>new int;
+	>new Stash;
+	>new int[10];
+>delete
+	>delete p;
+	>delete[] p;
+
+new and delete
+>new is the way to allocate memory as a
+program runs.Pointers become the only
+access to that memory.
+>delete enables you to return memory to
+the memory pool when you are finished
+with it.
+
+Dynamic Arrays
+int *psome = new int[10];
+>The new operator returns the address of
+the first element of the block.
+delete [] psome;
+>The presence of the brackets tells the
+program that it should free the whole
+array,not just the element.
+
+The new-delete mech
+	int *p = new int;
+	int *a = new int[10];
+
+	Student *q = new Student();
+	Student *r = new Student[10];
+
+	delete p;
+	delete [] a;
+	delete q;
+	delete [] r;
+
+Tips for new and delete
+>Don't use delete to free memory that
+new didn't allocate.
+>Don't use delete to free the same block
+of memory twice in succession.
+>Use delete[] if you used new [] to
+allocate an array.
+>Use delete(no brackets) if you used new
+to allocate a single entity.
+It's safe to apply delete to the null pointer
+(nothing happens).
